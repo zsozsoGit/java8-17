@@ -8,11 +8,14 @@ https://www.elegantobjects.org/
 
 https://www.jtechlog.hu/2022/09/13/spring-boot-3.html
 
+https://sdkman.io/jdks
+
 Témák:
 * Streamek
 * Thread már egy "régi téma"
 * Csinálj jegyzeteket
 * Bátran kérdezni
+* "wiki Java version history" - google sokat ad :)
 
 # Streamek
 ## Java8 funkcionális programozás
@@ -67,6 +70,14 @@ A JPA repository támogatja a stream feldolgozást, `@Transactional`.
 `Stream<Employee> findEmployee().forEach...`  Az EmployeeService interface erre jó, az infrastruktúra megcsinálja helyettem. Érdemes a SpringData JPA doksiját átböngészni. DTO is hasznos.
 Clean code: előbb legyen szép. A performancia bajok oka általában az adatbázis (lassú select) és a hálózati kapcsolat volt.
 
+Érdemes ilyen Architecture Deceision List-et használni, hogy akkor most milyen megoldásokat, konvenciókat fogunk alkalmazni. Moduláris programozás vagy újabban az MSA nagyon hasznos és akkor nem kell ilyen giga monolitikus alkalmazásokat összehozni.
+
+### Referencia implementációk
+Érdekes, hogy van egy szabvány és akkor van egy referencia implementációja ennek. De lehet más implementáció is. Sokszor ezek jobban is teljesen teljesítenek.
+
+"Java jó backend fejlesztésre, szkriptelésre shell vagy python."
+"Ne nagyon használjunk öröklődést... Asszimetrikus, mert nem ismeri elvileg az ősosztály a leszármazottakat"
+"Reflection, `instanceOf`, `Object` class használata -> _codesmell_
 ## Reduce
 Hasonló a Hadoop-hoz (mapreduce), ami több számítógépre (node) osztja szét a feladatot.
 Alapból mindig egy szálon megy a stream.
@@ -167,4 +178,63 @@ Hasonló a `thenAcceptBoth()`, viszont az `applyToEither()` az elsővel kezd el 
 
 _Tehát ez egy nagyon elegáns magas szintű eszköz._
 
-#
+### Steam párhuzamosítás
+Ez a combiner-nél jött elő először. A szálak száma a logikai CPU-k száma -1.
+Párhuzamos futtatásnál módosulhat az eredmény is! Pl. `forEach` esetén a feldolgozási sorrend. A `findFirst` az elsőt adja vissza, de `findAny` a legelőször elkészülőt.
+
+Kis elemszám esetén nem mérhető a párhuzamosítás előnye, tehát csak magas erőforrásigényű műveletek esetén érdemes, pl. HTTP lekérések esetén vagy milliós elemszám esetén, mert a szálmenedzsment maga is rengeteg erőforrást igényel.
+
+Globális válozók veszélyesek. Stream-ből ne nyúljunk ilyenhez. Helyette lehet synchronised. Vagy: `CopyOnWriteArrayList`. A `final` csak az értékadást tiltja le, de a módosítást nem... Érdemes egy saját thread poolt létrehozni a `ForkJoinPool`-lal.
+Bizonyos műveletek, mint a `flatMap` elveszik a párhuzamosságot. `unordered` gyorsíthat. Az `...ordered` pedig lassíthat.
+* `reduce()` eléggé bonyolult, de az immutabilitás miatt nem gond a párhuzamosság.
+* Collector viszont különböző karakterisztikákat tartalmaz erre.
+
+### Java 11
+HttpClient párhuzamos és modern is. Illetve a többi ehhez tartozó osztály is. Pl. a HttpResponse streamet ad vissza. A `.parallel()` bárhol lehet, akkor is a megfelelő helyen kezdi el a párhuzamosítást. Tehát maga a stream lesz paralell. Ugyanígy a limit is már az elején lekorlátozza a dolgot.
+# Java 9 újdonságok
+* Vannak már privát metódusok interfészekben. (default és static után)
+* try with resources _effective final_ változókon
+* Visszafelé inkompatibilis: már _nem_(?) lehet `_` változónév
+* `@SafeVarArgs` ("`...`" - varargs) Generikus típus és varargs kombinációja veszélyes és mostmár rátehető private változókra. Generikus és primitív típusok nem barátai egymásnak, és hasonló a tömbökkel is a generikus típusok helyzete.
+Mert generikusnál van egy implicit kasztolás.
+## Java Plattform Module System
+* Új láthatóságok
+* Jar-ok keresése induláskor és hiányzók, duplikátumok keresése. JAR-Hell handling. Hogyan? Meta-adatokkal. Hol? `module-info.java` file. Kulcsszavak: `requires`, `exports`; `provides`, `uses`... A hívó oldalnak nem kell ismernie az implementáló osztályt. `IF.load(IF.class).findFirst().orElseThrow(...)`
+Ehhez hasonló az OSGI. Ez kicsivel többet tud, pl. futás közben másik JAR változatot betölteni.
+* nincsen többé `rt.jar`, csak a JDK-ból azt kell odatenni, ami pont kell, így kisebb lesz a csomag. Java Linker.
+
+* diamond operátor `<>` kivezetődik, mert egyszerűbben lehet létrehozni kollekciókat.
+* `optional.stream()`
+* Scanner metódusok kimenet: Stream. 
+* `valueOf` preferáltabb a konstruktorok helyett.
+* Reaktív programozás, reaktív kiáltvány. -> Reactive Streams API.
+
+# Java 10
+
+Itt jelenik meg a
+* `var` syntatic sugar, de ettől még nem lesz dinamikus programozási nyelv. Olvashatóvá teszi a kódot. De pl. streameknél nehéz az IDE segítsége nélkül megmondani, hogy mi lett a változó.
+* Intersection types, két interfészt is lehet implementálni
+* ...
+
+# Java 11
+
+Oracle fizetőssé tette. Megjelentek a szabvány alapján írt alternatívák...
+Az OpenJDK nem ajánlja magát enterprise környezetben használni. Van az eclipse Temurin, vagy az Amazon Corretto
+
+Csomó mindent kiszednek ebben a verzióban, innét nem is alkalmas a Java már tulajdonképpen vastagkliens fejlesztésére.
+
+Itt is folytatódik az, hogy "megirigyelnek" dolgokat a python-tól pl. és akkor átvesznek ötleteket más programozási nyelvekből.
+* String metódusok, amiknek már réges-régen be kellett volna kerülniük
+* Hasonlóan: fájl olvasás egyszerűen.
+
+# Java 12...15
+Nézd a GitHub slide-okat :)
+
+# Java 16
+
+## Unix Domain Socket channels
+Pl. Docker Daemonnal való kommunikáció felgyorsul. Gyorsan lehet bizonyos konténereket provision-álni.
+
+# Java 17
+## Sealed classes
+Bonyolítja a leszármazást valójában.
